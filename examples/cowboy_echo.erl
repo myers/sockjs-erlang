@@ -5,23 +5,20 @@
 
 -export([main/1]).
 
-%% Cowboy callbacks
--export([init/3, handle/2, terminate/3]).
-
-
 main(_) ->
     Port = 8081,
     ok = application:start(xmerl),
     ok = application:start(sockjs),
     ok = application:start(ranch),
     ok = application:start(crypto),
+    ok = application:start(cowlib),
     ok = application:start(cowboy),
 
     SockjsState = sockjs_handler:init_state(
                     <<"/echo">>, fun service_echo/3, state, []),
 
     VhostRoutes = [{<<"/echo/[...]">>, sockjs_cowboy_handler, SockjsState},
-                   {'_', ?MODULE, []}],
+                   {"/", cowboy_static, {file, "./examples/echo.html"}}],
     Routes = [{'_',  VhostRoutes}], % any vhost
     Dispatch = cowboy_router:compile(Routes),
 
@@ -32,20 +29,6 @@ main(_) ->
     receive
         _ -> ok
     end.
-
-%% --------------------------------------------------------------------------
-
-init({_Any, http}, Req, []) ->
-    {ok, Req, []}.
-
-handle(Req, State) ->
-    {ok, Data} = file:read_file("./examples/echo.html"),
-    {ok, Req1} = cowboy_req:reply(200, [{<<"Content-Type">>, "text/html"}],
-                                       Data, Req),
-    {ok, Req1, State}.
-
-terminate(_Reason, _Req, _State) ->
-    ok.
 
 %% --------------------------------------------------------------------------
 
